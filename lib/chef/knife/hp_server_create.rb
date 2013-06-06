@@ -111,6 +111,11 @@ class Chef
       :proc => lambda { |o| o.split(/[\s,]+/) },
       :default => []
 
+      option :floating_ip,
+      :short => "-a IP",
+      :long => "--floating-ip IP",
+      :description => "Request to associate an extra floating IP address to the new node."
+
       option :host_key_verify,
       :long => "--[no-]host-key-verify",
       :description => "Verify host key, enabled by default",
@@ -189,6 +194,15 @@ class Chef
 
       puts("\n")
 
+      unless floating_ip.nil?
+        Chef::Log.debug("Additional Floating IP Address requested #{floating_ip}")
+        floating_address.server = server
+
+        #a bit of a hack, but server.reload takes a long time
+        (server.addresses['public'] ||= []) << {"version"=>4,"addr"=>floating_ip}
+        msg_pair("Additional Floating IP Address", floating_ip)
+      end
+
       msg_pair("Public IP Address", server.public_ip_address)
       msg_pair("Private IP Address", server.private_ip_address)
 
@@ -252,9 +266,22 @@ class Chef
       @image ||= connection.images.get(locate_config_value(:image))
     end
 
+    def floating_ip
+      @floating_ip ||= locate_config_value(:floating_ip)
+    end
+
+    def floating_address
+      @floating_address ||= connection.addresses.find { |a| a.ip == floating_ip }
+    end
+
     def validate!
 
       super([:image, :flavor, :hp_access_key, :hp_secret_key, :hp_tenant_id])
+
+      if !floating_ip.nil? && floating_address.nil?
+        ui.error("Address '#{floating_ip}' can't be found. Try 'knife hp ip list' to find available.")
+        exit 1
+      end
 
       if flavor.nil?
         ui.error("You have not provided a valid flavor ID. Please note the options for this value are -f or --flavor.")
