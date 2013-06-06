@@ -33,7 +33,7 @@ class Chef
         ip_list = [
           ui.color('ID', :bold),
           ui.color('Address', :bold),
-          ui.color('Is Fixed?', :bold),
+          ui.color('Fixed IP', :bold),
           ui.color('Instance ID', :bold),
         ]
 
