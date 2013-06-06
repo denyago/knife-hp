@@ -42,6 +42,12 @@ class Chef
         :long => "--node-name NAME",
         :description => "The name of the node and client to delete, if it differs from the server name. Only has meaning when used with the '--purge' option."
 
+      option :persist_floating_ip,
+        :long => "--persist-floating-ip",
+        :description => "Don't delete Floating IPs associated with the node. False by default",
+        :boolean => true,
+        :default => false
+
       # Extracted from Chef::Knife.delete_object, because it has a
       # confirmation step built in... By specifying the '--purge'
       # flag (and also explicitly confirming the server destruction!)
@@ -78,14 +84,16 @@ class Chef
 
             server.destroy
 
-            #HP doesn't free allocated IPs when servers are deleted
-            #if the address is a floating, it's the first entry in the private addresses(?)
-            float = server.addresses['private'][0]['addr']
-            Chef::Log.debug("hp_server_delete: float:#{float}")
-            addresses.each do |address|
-              if !(address.fixed_ip.nil?) && (address.fixed_ip == float)
-                msg_pair("Deleted Floating IP Address", float)
-                address.destroy
+            unless config[:persist_floating_ip]
+              #HP doesn't free allocated IPs when servers are deleted
+              #if the address is a floating, it's the first entry in the private addresses(?)
+              float = server.addresses['private'][0]['addr']
+              Chef::Log.debug("hp_server_delete: float:#{float}")
+              addresses.each do |address|
+                if !(address.fixed_ip.nil?) && (address.fixed_ip == float)
+                  msg_pair("Deleted Floating IP Address", float)
+                  address.destroy
+                end
               end
             end
 
